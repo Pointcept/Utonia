@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Utonia: Toward One Encoder for All Point Clouds</title>
+    
+    <!-- Meta tags for SEO and social sharing -->
+    <meta name="description" content="Utonia trains a single point transformer across heterogeneous point-cloud domains (indoor, outdoor LiDAR, remote sensing, object CAD, and video-lifted scans) toward one encoder for all point clouds and unified spatial cognition.">
+    <meta name="keywords" content="Point Cloud, 3D Representation Learning, Self-Supervised Learning, Multi-Domain Pretraining, Point Transformer, Spatial Cognition, 3D Segmentation, LiDAR">
+    <meta property="og:title" content="Utonia: Toward One Encoder for All Point Clouds">
+    <meta property="og:description" content="A geometry-first sparse 3D foundation encoder pretrained via teacher-student self-distillation across heterogeneous domains for unified spatial cognition and robust transfer.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://pointcept.github.io/Utonia/">
+    <meta property="og:image" content="logo.png">
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    
+    <!-- third-party css -->
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <!-- custom css -->
+    <link rel="stylesheet" href="css/template.css">
+    <link rel="stylesheet" href="css/page.css">
+    <link rel="stylesheet" href="css/scene-viewer.css">
+    <link rel="stylesheet" href="css/frame-viewer.css">
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Three.js CDN -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/examples/js/controls/PointerLockControls.js"></script> -->
+    <!-- three.js -->
+    <script src="js/three.min.js"></script>
+    <script src="js/PLYLoader.js"></script>
+    <script src="js/OrbitControls.js"></script>
+    <!-- custom js -->
+    <script src="js/HKSceneViewer.js"></script>
+    <script src="js/OutdoorSceneViewer.js"></script>
+    <script src="js/IndoorSceneViewer.js"></script>
+    <script src="js/ManipulationSceneViewer.js"></script>
+    <script src="js/ObjectSceneViewer.js"></script>
+    <!-- third-party js -->
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/clipboard.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <a href="#home">Utonia</a>
+            </div>
+            <ul class="nav-menu">
+                <li><a href="#home">Home</a></li>
+                <li><a href="#video-sec">Video</a></li>
+                <li><a href="#gallery">Gallery</a></li>
+                <li><a href="#pipeline">Pipeline</a></li>
+                <li><a href="#applications">Applications</a></li>
+                <li><a href="#citation">Citation</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <div class="hero-title-row">
+                    <span class="hero-title-main">Utonia: </span>
+                <h1 class="hero-title-sub">Toward One Encoder for All Point Clouds</h1>
+                </div>
+                <div class="hero-links">
+                    <a href="https://arxiv.org/abs/2603.03283" class="btn btn-secondary" target="_blank"><i class="fa-solid fa-file-alt"></i> Paper</a>
+                    <a href="https://huggingface.co/spaces/pointcept-bot/Utonia" class="btn btn-secondary" target="_blank">🤗 Demo
+                    </a>
+                    <a href="https://github.com/Pointcept/Utonia.git" class="btn btn-secondary" target="_blank"><i class="fa-brands fa-github"></i> GitHub</a>
+                </div>
+                <div class="authors-row">
+                    <div class="authors">
+                        <a href="https://yujia-zhang0913.github.io/" target="_blank">Yujia Zhang</a><sup>1</sup>,
+                        <a href="https://xywu.me/" target="_blank">Xiaoyang Wu</a><sup>1</sup>,
+                        <a href="https://yhyang-myron.github.io/" target="_blank">Yunhan Yang</a><sup>1</sup>,
+                        <a href="https://scholar.google.com/citations?user=aNnPnfcAAAAJ&hl" target="_blank">Xianzhe Fan</a><sup>1</sup>,
+                        <a href="https://github.com/homothetic" target="_blank">Han Li</a><sup>3</sup>,<br>
+                        <a href="https://julianjuaner.github.io/" target="_blank">Yuechen Zhang</a><sup>2</sup>,
+                        <a href="https://scholar.google.com/citations?user=zXqeKPgAAAAJ&hl=en" target="_blank">Zehao Huang</a><sup>3</sup>,
+                        <a href="https://scholar.google.com/citations?user=yAWtq6QAAAAJ&hl=en" target="_blank">Naiyan Wang</a><sup>3</sup>,
+                        <a href="https://hszhao.github.io/" target="_blank">Hengshuang Zhao</a><sup>1</sup>
+                    </div>
+                </div>
+                <div class="institutions">
+                    <sup>1</sup>The University of Hong Kong, <sup>2</sup>The Chinese University of Hong Kong, <sup>3</sup>Xiaomi
+                </div>
+                <div class="hero-description">
+                    <p>
+                        <p>
+                        <strong>Utonia</strong> is a step toward <strong>one-from-all</strong> and <strong>one-for-all</strong> point cloud encoder.
+                        It pretrains a single encoder on diverse point cloud data and reuses it as a reliable backbone for downstream tasks.
+                        Built on the premise that sparse point clouds are a geometry-first, compact interface to the physical world,
+                        Utonia introduces three designs: Causal Modality Blinding, Perceptual Granularity Rescale,
+                        and RoPE for Cross-Domain Spatial Encoding, to turn fragmented 3D observations into a shared representation.
+                        </p>
+                    </p>
+                </div>
+                <div class="teaser-img">
+                    <img src="https://github.com/Pointcept/Assets/blob/main/utonia/teaser.png?raw=true" alt=" Utonia Teaser" class="teaser-img">
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Video Section -->
+    <section id="video-sec" class="video-sec">
+        <h2>Video</h2>
+        <div class="hero-video">
+            <div class="hero-description">
+                <p>
+                We visualizes pretrained features with PCA projections. Each transition performs a progressive zoom-in, moving from a city-scale scene to a street intersection, an indoor room and fine-grained objects.
+                Across various domains, Utonia remains consistent and transferable. It handles city-level large-range scans, outdoor LiDAR with strong sensor-pattern artifacts, dense indoor point clouds, and rotation-invariant object-centric geometry, highlighting strong generalization across granularitiesm, sensors, and coordinate conventions.
+                </p>
+            </div>
+            <p></p>
+            <div class="video-wrapper">
+                <video controls autoplay muted loop>
+                    <source src="https://raw.githubusercontent.com/Pointcept/Assets/main/utonia/demos/demo.mp4" type="video/mp4">
+                </video>
+            </div>
+        </div>
+    </section>
+    
+    <!-- Gallery Section -->
+    <section id="gallery" class="gallery">
+        <h2>Gallery</h2>
+        <div class="container">
+            <div class="hero-description">
+                <p style="text-align: center;">
+                    We show interactive point cloud visualizations. The raw RGB colorful point cloud is on the left. The PCA processed representation visualization is on the right. <br>
+                    (Mouse wheel to zoom in/out, drag to rotate, ctrl + drag to pan, drag the vertical split line to compare the raw and PCA features)
+                </p>
+            </div>
+
+        <div class="ply-selector">
+            <!-- <div class="model-grid">
+                <button onclick="loadHKModelPair('1')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/hk/hk_1/preview.png?raw=true" alt="HK 1">
+                <span>HK</span>
+                </button>
+            </div> -->
+
+            <div class="sv-canvas-split-container">
+                <div class="sv-canvas-split-wrapper">
+                <div id="hk-canvas-split" class="sv-split-canvas"></div>
+
+                <div class="sv-button-container">
+                    <button class="sv-control-button sv-zoom-in-button">+</button>
+                    <button class="sv-control-button sv-zoom-out-button">-</button>
+                    <button class="sv-control-button sv-reset-button">⟳</button>
+                </div>
+                <div class="sv-canvas-label">Raw | PCA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ply-selector">
+            <div class="model-grid">
+                <button onclick="loadOutdoorModelPair('1')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_1/preview.png?raw=true" alt="Outdoor 1">
+                <span>Outdoor 1</span>
+            </button>
+                <button onclick="loadOutdoorModelPair('2')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_2/preview.png?raw=true" alt="Outdoor 2">
+                <span>Outdoor 2</span>
+            </button>
+                <button onclick="loadOutdoorModelPair('3')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_3/preview.png?raw=true" alt="Outdoor 3">
+                <span>Outdoor 3</span>
+            </button>
+                <button onclick="loadOutdoorModelPair('4')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_4/preview.png?raw=true" alt="Outdoor 4">
+                <span>Outdoor 4</span>
+            </button>
+                <button onclick="loadOutdoorModelPair('5')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_5/preview.png?raw=true" alt="Outdoor 5">
+                <span>Outdoor 5</span>
+            </button>
+                <button onclick="loadOutdoorModelPair('6')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/outdoor/outdoor_6/preview.png?raw=true" alt="Outdoor 6">
+                <span>Outdoor 6</span>
+            </button>
+            </div>
+            
+            <div class="sv-canvas-container">
+                <div class="sv-canvas-wrapper">
+                    <div id="outdoor-canvas-pcd" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">Raw</div>
+                </div>
+                <div class="sv-canvas-wrapper">
+                    <div id="outdoor-canvas-pca" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">PCA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ply-selector">
+            <div class="model-grid">
+                <button onclick="loadIndoorModelPair('1')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_1/preview.png?raw=true" alt="Indoor 1">
+                <span>Indoor 1</span>
+            </button>
+                <button onclick="loadIndoorModelPair('2')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_2/preview.png?raw=true" alt="Indoor 2">
+                <span>Indoor 2</span>
+            </button>
+                <button onclick="loadIndoorModelPair('3')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_3/preview.png?raw=true" alt="Indoor 3">
+                <span>Indoor 3</span>
+            </button>
+                <button onclick="loadIndoorModelPair('4')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_4/preview.png?raw=true" alt="Indoor 4">
+                <span>Indoor 4</span>
+            </button>
+                <button onclick="loadIndoorModelPair('5')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_5/preview.png?raw=true" alt="Indoor 5">
+                <span>Indoor 5</span>
+            </button>
+                <button onclick="loadIndoorModelPair('6')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/indoor/indoor_6/preview.png?raw=true" alt="Indoor 6">
+                <span>Indoor 6</span>
+            </button>
+            </div>
+            
+            <div class="sv-canvas-container">
+                <div class="sv-canvas-wrapper">
+                    <div id="indoor-canvas-pcd" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">Raw</div>
+                </div>
+                <div class="sv-canvas-wrapper">
+                    <div id="indoor-canvas-pca" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">PCA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ply-selector">
+            <div class="model-grid">
+                <button onclick="loadManipulationModelPair('1')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_1/preview.png?raw=true" alt="Manipulation 1">
+                <span>Manipulation 1</span>
+            </button>
+                <button onclick="loadManipulationModelPair('2')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_2/preview.png?raw=true" alt="Manipulation 2">
+                <span>Manipulation 2</span>
+            </button>
+                <button onclick="loadManipulationModelPair('3')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_3/preview.png?raw=true" alt="Manipulation 3">
+                <span>Manipulation 3</span>
+            </button>
+                <button onclick="loadManipulationModelPair('4')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_4/preview.png?raw=true" alt="Manipulation 4">
+                <span>Manipulation 4</span>
+            </button>
+                <button onclick="loadManipulationModelPair('5')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_5/preview.png?raw=true" alt="Manipulation 5">
+                <span>Manipulation 5</span>
+            </button>
+                <button onclick="loadManipulationModelPair('6')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/manipulation/manipulation_6/preview.png?raw=true" alt="Manipulation 6">
+                <span>Manipulation 6</span>
+            </button>
+            </div>
+            
+            <div class="sv-canvas-container">
+                <div class="sv-canvas-wrapper">
+                    <div id="manipulation-canvas-pcd" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">Raw</div>
+                </div>
+                <div class="sv-canvas-wrapper">
+                    <div id="manipulation-canvas-pca" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">PCA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="ply-selector">
+            <div class="model-grid">
+                <button onclick="loadObjectModelPair('1')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_1/preview.png?raw=true" alt="Object 1">
+                <span>Object 1</span>
+            </button>
+                <button onclick="loadObjectModelPair('2')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_2/preview.png?raw=true" alt="Object 2">
+                <span>Object 2</span>
+            </button>
+                <button onclick="loadObjectModelPair('3')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_3/preview.png?raw=true" alt="Object 3">
+                <span>Object 3</span>
+            </button>
+                <button onclick="loadObjectModelPair('4')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_4/preview.png?raw=true" alt="Object 4">
+                <span>Object 4</span>
+            </button>
+                <button onclick="loadObjectModelPair('5')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_5/preview.png?raw=true" alt="Object 5">
+                <span>Object 5</span>
+            </button>
+                <button onclick="loadObjectModelPair('6')">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/demos/ply/object/object_6/preview.png?raw=true" alt="Object 6">
+                <span>Object 6</span>
+            </button>
+            </div>
+            
+            <div class="sv-canvas-container">
+                <div class="sv-canvas-wrapper">
+                    <div id="object-canvas-pcd" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">Raw</div>
+                </div>
+                <div class="sv-canvas-wrapper">
+                    <div id="object-canvas-pca" class="sv-canvas"></div>
+                    <div class="sv-button-container">
+                        <button class="sv-control-button sv-zoom-in-button">+</button>
+                        <button class="sv-control-button sv-zoom-out-button">-</button>
+                        <button class="sv-control-button sv-reset-button">⟳</button>
+                    </div>
+                    <div class="sv-canvas-label">PCA</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hero-description">
+            <p style="text-align: center;">
+                For more examples, use our inference github code to generate your own visualizations! <a href="https://github.com/Pointcept/Concerto/tree/main">Check it out</a>
+            </p>
+        </div>
+    </section>
+    
+
+    <!-- Abstract Section -->
+    <section id="abstract" class="abstract">
+        <div class="container">
+            <h2>Abstract</h2>
+            <div class="abstract-text">
+                We dream of a future where point clouds from all domains can come together to shape a single model that benefits them all. Toward this goal, we present Utonia, a first step toward training a single self-supervised point transformer encoder across heterogeneous domains, spanning remote sensing, outdoor LiDAR, indoor RGB-D sequences, object-centric CAD models, and point clouds lifted from RGB-only videos. Despite their distinct sensing geometries, densities, and priors, Utonia learns a consistent representation space that transfers across domains. This unification improves perception capability while revealing intriguing emergent behaviors that arise only when domains are trained jointly. Beyond perception, we observe that Utonia representations can also benefit embodied and multimodal reasoning: conditioning vision-language-action policies on Utonia features improves robotic manipulation, and integrating them into vision-language models yields gains on spatial reasoning. We hope Utonia can serve as a step toward foundation models for sparse 3D data, and support downstream applications in AR/VR, robotics, and autonomous driving.
+            </div>
+        </div>
+    </section>
+
+    <!-- Motivation -->
+    <section id="motivation" class="motivation">
+        <div class="container">
+            <h2>What Prevents Unification?</h2>
+            <div class="motivation-embed">
+    
+                <div class="motivation-block">
+                    <ul>
+                        <li><strong>Sensitivity to granularity shifts.</strong></li>
+                    </ul>
+                    <p>
+                        In sparse point processing, grid size sets the metric unit of local neighborhoods. The same operator may span centimeters in one domain but meters in another, so granularity shifts change neighborhood statistics and topology and couple features to domain-specific scale. As shown in the table, settings that work per-domain become fragile under joint training. This motivates granularity alignment for joint pretraining. Inspired by an observer's roughly fixed minimal resolution, we rescale each point cloud to a canonical observing granularity, so positional hints and interactions are built on comparable spatial units across domains.
+                    </p>
+                    <img src="https://github.com/Pointcept/Assets/blob/main/utonia/density.png?raw=true" alt="density" class="motivation-chat">
+                </div>
+    
+                <div class="motivation-block">
+                    <ul>
+                        <li><strong>Bias toward gravity convention.</strong></li>
+                    </ul>
+                    <p>
+                        Many scene-level point clouds with a coarser granularity follow a gravity-aligned convention, making height a physical reference. Accordingly, prior scene-centric training usually avoids strong x/y rotations, since many semantics depend on gravity, such supporting surfaces. However, height can act as a domain cue, which hurts transfer to object-centric scans with a fine granularity. In the figure, features from Sonata and Concerto exhibit strong z-correlated patterns, while Utonia weakens this correlation. This suggests treating gravity alignment as a granularity-dependent prior: retaining upright structure for scene-scale scans while encouraging rotation invariance for fine-grained objects.
+                    </p>
+                    <img src="https://github.com/Pointcept/Assets/blob/main/utonia/gravity.png?raw=true" alt="gravity" class="motivation-img">
+                </div>
+
+                <div class="motivation-block">
+                    <ul>
+                        <li><strong>Inconsistent modality availability.</strong></li>
+                    </ul>
+                    <p>
+                        Point clouds across domains expose different auxiliary channels beyond coordinates: colors and normals. In naive multi-domain pretraining, the encoder tends to exploit these channels whenever they exist, since they provide strong cues that can complement coordinates. However, the resulting dependence is unstable: when these modalities are missing, noisy, or defined differently, representations and performance can degrade. Intuitively, it resembles a person who can walk well with vision but stumbles when suddenly blindfolded. This motivates a specific design on modality availability during pretraining, enabling the model to benefit from optional modalities when present while remaining robust when they are absent.
+                    </p>
+                </div>
+    
+            </div>
+        </div>
+    </section>
+
+    <!-- Pipeline Section -->
+    <section id="pipeline" class="pipeline">
+        <div class="container">
+            <h2>Pipeline of Utonia</h2>
+            <div class="pipeline-embed">
+                <img src="https://github.com/Pointcept/Assets/blob/main/utonia/method.png?raw=true" alt="Utonia Pipeline" class="pipeline-img">
+            </div>
+            <p class="pipeline-caption">
+                Utonia introduces three critical improvements to the point cloud SSL pipeline. Cross-domain data: jointly training on object-centric, indoor, and outdoor point clouds. RoPE-Enhanced Point Transformer V3: Strengthening spatial encoding and cross-domain transferability via RoPE on granularity-aligned coordinates and domain-prior erasure. Broader evaluation: extending beyond standard perception tasks to spatial reasoning, robotic manipulation, and open-world part segmentation.
+            </p>
+        </div>
+    </section>
+
+    <!-- Applications Section -->
+    <section id="applications" class="applications">
+        <div class="container">
+            <h2>Applications</h2>
+            <div class="hero-description">
+                <p>
+                    <strong>Robotics Manipulation</strong>: Utonia can separate objects from supporting surfaces and remain coherent under occlusion and partial observations, providing geometry-aware cues that are useful for downstream grasping and motion planning. The quantitative results are provided in the paper, and the qualitative visualization is shown in the figure.
+                </p>
+            </div>
+            <img src="https://github.com/Pointcept/Assets/blob/main/utonia/manipulation.png?raw=true" alt="Utonia Robotics Manipulation Application" class="application-img">
+            <div class="hero-description">
+                <p>
+                    <strong>Open-World Object Segmentation</strong>: We further evaluate Utonia on open-world 3D object segmentation by building on P<sup>3</sup>SAM. The figure compares Sonata and Utonia under the same promptable segmentation setting. The detailed quantitative segmentation results are provided in our paper. The Sonata-initialized encoder produces features lacking distinct part semantics. In contrast, the Utonia-initialized encoder generates features with clear part-level structures, enabling highly accurate segmentation with well-defined boundaries and consistent semantic meaning.
+                </p>
+            </div>
+            <img src="https://github.com/Pointcept/Assets/blob/main/utonia/partseg.png?raw=true" alt="Utonia Open-world Object Segmentation Application" class="application-img">
+            <div class="hero-description">
+                <p>
+                    <strong>Spatial reasoning</strong>: We evaluate Sonata, Concerto, and Utonia using the baseline Video-3D LLM on three representative tasks: 3D visual grounding, 3D dense captioning, and 3D question answering. The table shows that Utonia yields consistent gains on grounding and question answering, while remaining competitive on dense captioning. 
+                </p>
+            </div>
+            <img src="https://github.com/Pointcept/Assets/blob/main/utonia/reasoning.png?raw=true" alt="Utonia Spatial Reasoning Application" class="application-chat">
+        </div>
+    </section>
+
+        
+    <!-- Learn More Section -->
+    <section id="learn-more" class="learn-more">
+        <div class="container">
+            <h2>More Details?</h2>
+            <div class="learn-more-text">
+                For more details on methodologies, evaluation metrics, and comparison with baselines, please refer to our paper.<br><br>
+                <a href="https://arxiv.org/abs/2603.03283" class="btn btn-primary learn-more-btn" target="_blank" style="font-size:1.5rem; padding: 0.8em 2em; margin-top: 1em;">Read the Paper</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Citation Section -->
+    <section id="citation" class="citation">
+        <div class="container">
+            <h2>Citation</h2>
+            <div class="citation-box">
+                <pre>
+<code>
+@misc{zhang2026utoniaencoderpointclouds,
+      title={Utonia: Toward One Encoder for All Point Clouds}, 
+      author={Yujia Zhang and Xiaoyang Wu and Yunhan Yang and Xianzhe Fan and Han Li and Yuechen Zhang and Zehao Huang and Naiyan Wang and Hengshuang Zhao},
+      year={2026},
+      eprint={2603.03283},
+      archivePrefix={arXiv},
+      primaryClass={cs.CV},
+      url={https://arxiv.org/abs/2603.03283}, 
+}
+</code>
+</pre>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 Utonia Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- Lightbox Modal for Gallery -->
+    <div id="lightbox-modal" class="lightbox-modal">
+        <span class="lightbox-close" id="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="lightbox-img" src="" alt="High Resolution Gallery Image">
+    </div>
+
+    <script src="js/script.js"></script>
+    <!-- <script src="threejs-viewer.js"></script> -->
+</body>
+</html> 
