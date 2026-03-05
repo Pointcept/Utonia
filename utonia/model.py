@@ -292,12 +292,16 @@ class SerializedAttention(PointModule):
         qkv = self.qkv(point.feat)[order]
 
         rope_coord = point.coord[order].clone()
+
+        qkv = qkv.reshape(-1, 3, H, C // H)
+        q, k, v = qkv.unbind(dim=1)
+        q, k = self.rope(q, k, rope_coord)
+
         if not self.enable_flash:
-            # encode and reshape qkv: (N', K, 3, H, C') => (3, N', H, K, C')
-            q, k, v = (
-                qkv.reshape(-1, K, 3, H, C // H).permute(2, 0, 3, 1, 4).unbind(dim=0)
-            )
-            q, k = self.rope(q, k, rope_coord)
+            q = q.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            k = k.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+            v = v.reshape(-1, K, H, C // H).permute(0, 2, 1, 3)
+
             # attn
             if self.upcast_attention:
                 q = q.float()
@@ -311,9 +315,6 @@ class SerializedAttention(PointModule):
             attn = self.attn_drop(attn).to(qkv.dtype)
             feat = (attn @ v).transpose(1, 2).reshape(-1, C)
         else:
-            qkv = qkv.reshape(-1, 3, H, C // H)
-            q, k, v = qkv.unbind(dim=1)
-            q, k = self.rope(q, k, rope_coord)
             qkv_roped = torch.stack([q, k, v], dim=1)
             feat = flash_attn.flash_attn_varlen_qkvpacked_func(
                 qkv_roped.to(torch.bfloat16),
