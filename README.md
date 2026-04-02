@@ -1,9 +1,9 @@
 # Utonia
 **TL;DR:** This repo provide cross-domain pre-trained [Point Transformer V3](https://github.com/Pointcept/PointTransformerV3) for 3D point cloud downstream tasks, modified from [Sonata](https://github.com/facebookresearch/sonata.git) and [Concerto](https://pointcept.github.io/Concerto/).
 
-This repo is the official project repository of the paper **_Utonia: Toward One Encoder for All Point Clouds_** and is mainly used for providing pre-trained models, inference code and visualization demo.
+This repo is the official project repository of the paper **_Utonia: Toward One Encoder for All Point Clouds_** and is mainly used for providing pre-trained models, inference code and visualization demo. For reproduce pre-training process of Utonia, please refer to our [Pointcept](https://github.com/Pointcept/Pointcept) codebase.
 
-[ **Pretrain** ] [ **Utonia** ] - [ [Homepage](https://pointcept.github.io/Utonia/) ] [ [Paper](https://arxiv.org/abs/2603.03283) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] [ [Bib](#citation) ]
+[ **Pretrain** ] [ **Utonia** ] - [ [Homepage](https://pointcept.github.io/Utonia/) ] [ [Paper](https://arxiv.org/abs/2603.03283) ] [ [Weight](https://huggingface.co/Pointcept/Utonia) ] [ [Pretrain](https://github.com/Pointcept/Pointcept) ] [ [Bib](#citation) ]
 
 
 <div align='left'>
