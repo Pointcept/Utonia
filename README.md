@@ -11,6 +11,7 @@ This repo is the official project repository of the paper **_Utonia: Toward One 
 </div>
 
 ## Highlights
+- *October, 2026* : We have uploaded the **Utonia Tiny** and **Utonia Small** pre-trained model weights to [Hugging Face](https://huggingface.co/Pointcept/Utonia), with inference and visualization support in this repo. See **[Quick Start](#quick-start)** for usage.
 - *February, 2026* : We provide an easy-to-use inference demo and visualization with our pre-trained model weight in this repo. We highly recommend user begin with is repo for **[quick start](#quick-start)**.
 
 ## Overview
@@ -66,6 +67,14 @@ This repo provide two ways of installation: **standalone mode** and **package mo
   python demo/6_pca_object.py
   python demo/7_pca_outdoor.py
   ```
+
+  Select a smaller encoder with `--model utonia_small` or `--model utonia_tiny`:
+  ```bash
+  python demo/0_pca_indoor.py --model utonia_small
+  python demo/3_batch_forward.py --model utonia_tiny
+  ```
+  All PCA, similarity, batch, and video demos support `--model`; the default remains `utonia`.
+  `demo/2_sem_seg.py` uses the ScanNet linear probing head trained for `utonia` and does not support the small/tiny encoders.
 
   <div align='left'>
   <img src="https://raw.githubusercontent.com/pointcept/assets/main/utonia/demo.png" alt="teaser" width="800" />
@@ -157,12 +166,27 @@ This repo provide two ways of installation: **standalone mode** and **package mo
   from utonia.model import PointTransformerV3
   model = PointTransformerV3.from_pretrained("Pointcept/Utonia").cuda()
 
+  # Load the small or tiny encoder
+  model = utonia.model.load("utonia_small").cuda()
+  model = utonia.model.load("utonia_tiny").cuda()
+
+  # Without FlashAttention, override the attention backend
+  model = utonia.model.load(
+      "utonia_tiny", custom_config=dict(enable_flash=False)
+  ).cuda()
+
   # Load the pre-trained model from local path
   # assume the ckpt file is stored in the 'ckpt' folder
   model = utonia.model.load("ckpt/utonia.pth").cuda()
+  model = utonia.model.load("ckpt/utonia_small.pth").cuda()
+  model = utonia.model.load("ckpt/utonia_tiny.pth").cuda()
 
   # the ckpt file store the config and state_dict of pretrained model
   ```
+
+  Model architecture and feature widths are read from each checkpoint automatically.
+  Downstream heads must match the selected encoder's feature width; the existing
+  `utonia_linear_prob_head_sc` checkpoint is only compatible with `utonia`.
 
 - **Inference.** Run the inference by running the following command:
   ```python

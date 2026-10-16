@@ -44,6 +44,8 @@ from .utils import offset2bincount
 
 MODELS = [
     "utonia",
+    "utonia_small",
+    "utonia_tiny",
     "utonia_linear_prob_head_sc",
 ]
 
@@ -851,11 +853,17 @@ class PointTransformerV3(PointModule, PyTorchModelHubMixin):
 
 def load(
     name: str = "utonia",
-    repo_id="Pointcept/utonia",
+    repo_id="Pointcept/Utonia",
     download_root: str = None,
     custom_config: dict = None,
     ckpt_only: bool = False,
 ):
+    """Load a Utonia checkpoint by registered name or local path.
+
+    Encoder names are ``utonia``, ``utonia_small``, and ``utonia_tiny``.
+    The architecture is read from the checkpoint and can be overridden with
+    ``custom_config`` (for example, ``dict(enable_flash=False)``).
+    """
     if name in MODELS:
         print(f"Loading checkpoint from HuggingFace: {name} ...")
         ckpt_path = hf_hub_download(

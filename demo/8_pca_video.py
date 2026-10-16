@@ -767,6 +767,12 @@ if __name__ == "__main__":
         "--wo_normal", dest="wo_normal", action="store_true", help="disable the normal."
     )
 
+    parser.add_argument(
+        "--model",
+        choices=["utonia", "utonia_small", "utonia_tiny"],
+        default="utonia",
+        help="pre-trained Utonia encoder to use (default: utonia).",
+    )
     args = parser.parse_args()
 
     VGGT_model = VGGT().to(device)
@@ -792,14 +798,14 @@ if __name__ == "__main__":
     utonia.utils.set_seed(53124)
 
     if flash_attn is not None:
-        model = utonia.load("utonia", repo_id="Pointcept/Utonia").to(device)
+        model = utonia.load(args.model, repo_id="Pointcept/Utonia").to(device)
     else:
         custom_config = dict(
             enc_patch_size=[1024 for _ in range(5)],  # reduce patch size if necessary
             enable_flash=False,
         )
         model = utonia.load(
-            "utonia", repo_id="Pointcept/Utonia", custom_config=custom_config
+            args.model, repo_id="Pointcept/Utonia", custom_config=custom_config
         ).to(device)
     model.eval()
     # The choice of scale depends on the desired level of granularity. You may need to fine-tune this parameter to find the optimal value for your specific tasks. Generally, the larger the scale, the more fine-grained the results will be.

@@ -46,6 +46,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--wo_normal", dest="wo_normal", action="store_true", help="disable the normal."
     )
+    parser.add_argument(
+        "--model",
+        choices=["utonia", "utonia_small", "utonia_tiny"],
+        default="utonia",
+        help="pre-trained Utonia encoder to use (default: utonia).",
+    )
     args = parser.parse_args()
     # set random seed
     # (random seed affect pca color, yet change random seed need manual adjustment kmeans)
@@ -53,14 +59,14 @@ if __name__ == "__main__":
     utonia.utils.set_seed(37)
     # Load model
     if flash_attn is not None:
-        model = utonia.load("utonia", repo_id="Pointcept/Utonia").to(device)
+        model = utonia.load(args.model, repo_id="Pointcept/Utonia").to(device)
     else:
         custom_config = dict(
             enc_patch_size=[1024 for _ in range(5)],  # reduce patch size if necessary
             enable_flash=False,
         )
         model = utonia.load(
-            "utonia", repo_id="Pointcept/Utonia", custom_config=custom_config
+            args.model, repo_id="Pointcept/Utonia", custom_config=custom_config
         ).to(device)
     model.eval()
 
