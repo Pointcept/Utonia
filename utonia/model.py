@@ -38,6 +38,9 @@ try:
 except ImportError:
     flash_attn = None
 
+# F.scaled_dot_product_attention has the scale argument since torch 2.1
+SDPA_AVAILABLE = version.parse(torch.__version__) >= version.parse("2.1")
+
 from .structure import Point
 from .module import PointSequential, PointModule
 from .utils import offset2bincount
@@ -308,14 +311,31 @@ class SerializedAttention(PointModule):
             if self.upcast_attention:
                 q = q.float()
                 k = k.float()
-            attn = (q * self.scale) @ k.transpose(-2, -1)  # (N', H, K, K)
-            if self.enable_rpe:
-                attn = attn + self.rpe(self.get_rel_pos(point, order))
-            if self.upcast_softmax:
-                attn = attn.float()
-            attn = self.softmax(attn)
-            attn = self.attn_drop(attn).to(qkv.dtype)
-            feat = (attn @ v).transpose(1, 2).reshape(-1, C)
+            if self.enable_rpe or not SDPA_AVAILABLE:
+                attn = (q * self.scale) @ k.transpose(-2, -1)  # (N', H, K, K)
+                if self.enable_rpe:
+                    attn = attn + self.rpe(self.get_rel_pos(point, order))
+                if self.upcast_softmax:
+                    attn = attn.float()
+                attn = self.softmax(attn)
+                attn = self.attn_drop(attn).to(qkv.dtype)
+                feat = (attn @ v).transpose(1, 2).reshape(-1, C)
+            else:
+                # the memory-efficient kernel needs head dim % 8 == 0,
+                # zero padding does not change the result
+                v = v.to(q.dtype)
+                head_dim = C // H
+                pad_dim = -head_dim % 8
+                if pad_dim:
+                    q, k, v = (nn.functional.pad(x, (0, pad_dim)) for x in (q, k, v))
+                feat = nn.functional.scaled_dot_product_attention(
+                    q,
+                    k,
+                    v,
+                    dropout_p=self.attn_drop.p if self.training else 0.0,
+                    scale=self.scale,
+                )[..., :head_dim]
+                feat = feat.to(qkv.dtype).transpose(1, 2).reshape(-1, C)
         else:
             qkv_roped = torch.stack([q, k, v], dim=1)
             feat = flash_attn.flash_attn_varlen_qkvpacked_func(
