@@ -24,7 +24,9 @@ Please cite our work if the code is helpful to you.
 import os
 import math
 from packaging import version
+from huggingface_hub import constants as hf_constants
 from huggingface_hub import hf_hub_download, PyTorchModelHubMixin
+from huggingface_hub.utils import EntryNotFoundError
 from addict import Dict
 import torch
 import torch.nn as nn
@@ -870,6 +872,89 @@ class PointTransformerV3(PointModule, PyTorchModelHubMixin):
             point = self.dec(point)
         return point
 
+    @classmethod
+    def _from_pretrained(
+        cls,
+        *,
+        model_id,
+        checkpoint="utonia",
+        map_location="cpu",
+        strict=False,
+        **kwargs,
+    ):
+        """Load weights from the Hub, falling back to a legacy ``.pth`` checkpoint.
+
+        ``PyTorchModelHubMixin`` expects ``config.json`` + ``model.safetensors``
+        in the repo (the layout written by ``save_pretrained``/``push_to_hub``,
+        which is also what the Hub uses to track download stats). Repositories
+        that only ship the original ``{checkpoint}.pth`` files are still loadable:
+        the architecture is read from ``ckpt["config"]`` and any extra keyword
+        arguments (e.g. ``enable_flash=False``) override it.
+        """
+        hub_keys = (
+            "revision",
+            "cache_dir",
+            "force_download",
+            "local_files_only",
+            "token",
+            "proxies",
+            "resume_download",
+        )
+        hub_kwargs = {k: kwargs.pop(k) for k in hub_keys if k in kwargs}
+        model_kwargs = kwargs
+        if cls._has_mixin_weights(model_id, hub_kwargs):
+            return super()._from_pretrained(
+                model_id=model_id,
+                map_location=map_location,
+                strict=strict,
+                **hub_kwargs,
+                **model_kwargs,
+            )
+
+        filename = f"{checkpoint}.pth"
+        if os.path.isdir(model_id):
+            ckpt_path = os.path.join(model_id, filename)
+            if not os.path.isfile(ckpt_path):
+                raise FileNotFoundError(
+                    f"Neither {hf_constants.SAFETENSORS_SINGLE_FILE} nor {filename} "
+                    f"found in {model_id}"
+                )
+        else:
+            print(f"Loading checkpoint from HuggingFace: {filename} ...")
+            ckpt_path = hf_hub_download(
+                repo_id=model_id, filename=filename, repo_type="model", **hub_kwargs
+            )
+        ckpt = _load_checkpoint(ckpt_path)
+        config = dict(ckpt["config"])
+        config.update(model_kwargs)
+        model = cls(**config)
+        model.load_state_dict(ckpt["state_dict"], strict=strict)
+        return model
+
+    @staticmethod
+    def _has_mixin_weights(model_id, hub_kwargs):
+        """Whether ``model_id`` ships weights in the ``PyTorchModelHubMixin`` layout."""
+        if os.path.isdir(model_id):
+            return os.path.isfile(
+                os.path.join(model_id, hf_constants.SAFETENSORS_SINGLE_FILE)
+            )
+        for filename in (
+            hf_constants.SAFETENSORS_SINGLE_FILE,
+            hf_constants.PYTORCH_WEIGHTS_NAME,
+        ):
+            try:
+                hf_hub_download(repo_id=model_id, filename=filename, **hub_kwargs)
+                return True
+            except EntryNotFoundError:
+                continue
+        return False
+
+
+def _load_checkpoint(ckpt_path):
+    if version.parse(torch.__version__) >= version.parse("2.4"):
+        return torch.load(ckpt_path, map_location="cpu", weights_only=True)
+    return torch.load(ckpt_path, map_location="cpu")
+
 
 def load(
     name: str = "utonia",
@@ -899,10 +984,7 @@ def load(
     else:
         raise RuntimeError(f"Model {name} not found; available models = {MODELS}")
 
-    if version.parse(torch.__version__) >= version.parse("2.4"):
-        ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=True)
-    else:
-        ckpt = torch.load(ckpt_path, map_location="cpu")
+    ckpt = _load_checkpoint(ckpt_path)
     if custom_config is not None:
         for key, value in custom_config.items():
             ckpt["config"][key] = value

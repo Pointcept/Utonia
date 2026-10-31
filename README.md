@@ -162,7 +162,8 @@ This repo provide two ways of installation: **standalone mode** and **package mo
   # ckpt is cached in ~/.cache/utonia/ckpt, and the path can be customized by setting 'download_root'
   model = utonia.model.load("utonia", repo_id="Pointcept/Utonia").cuda()
 
-  # or
+  # or, via the Hugging Face PyTorchModelHubMixin interface
+  # (config overrides such as enable_flash=False can be passed as keyword arguments)
   from utonia.model import PointTransformerV3
   model = PointTransformerV3.from_pretrained("Pointcept/Utonia").cuda()
 
