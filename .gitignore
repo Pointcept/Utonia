@@ -1,5 +1,6 @@
 image/
 __pycache__
+.venv/
 **/build/
 **/*.egg-info/
 **/dist/
@@ -10,6 +11,10 @@ data
 log
 ckpt
 outputs/
+multiview_demo_output/
+# This is a public repo, need to exclude study files from version control
+study/
+
 .vscode
 .idea
 */.DS_Store

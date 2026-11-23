@@ -649,12 +649,20 @@ def integrate_rgbd_to_mesh(
 
     # Constants.
     trunc_voxel_multiplier = 8.0
-    sdf_trunc = trunc_voxel_multiplier * voxel_size
+    depth_scale = 1000.0
+    depth_max = 10.0
 
-    volume = o3d.pipelines.integration.ScalableTSDFVolume(
-        voxel_length=voxel_size,
-        sdf_trunc=sdf_trunc,
-        color_type=o3d.pipelines.integration.TSDFVolumeColorType.RGB8,
+    # Tensor-API TSDF: the legacy ScalableTSDFVolume yields empty meshes in
+    # Open3D 0.20.0 (https://github.com/isl-org/Open3D/issues/7592).
+    # block_count is only the initial capacity; the grid grows as needed.
+    volume = o3d.t.geometry.VoxelBlockGrid(
+        attr_names=("tsdf", "weight", "color"),
+        attr_dtypes=(o3d.core.float32, o3d.core.float32, o3d.core.float32),
+        attr_channels=(1, 1, 3),
+        voxel_size=voxel_size,
+        block_resolution=16,
+        block_count=10000,
+        device=o3d.core.Device("CPU:0"),
     )
 
     for K, T, im_depth, im_color in tqdm(
@@ -682,31 +690,31 @@ def integrate_rgbd_to_mesh(
 
         im_color_uint8 = np.ascontiguousarray((im_color * 255).astype(np.uint8))
         im_depth_uint16 = np.ascontiguousarray((im_depth * 1000).astype(np.uint16))
-        im_color_o3d = o3d.geometry.Image(im_color_uint8)
-        im_depth_o3d = o3d.geometry.Image(im_depth_uint16)
-        im_rgbd_o3d = o3d.geometry.RGBDImage.create_from_color_and_depth(
-            im_color_o3d,
+        im_color_o3d = o3d.t.geometry.Image(im_color_uint8)
+        im_depth_o3d = o3d.t.geometry.Image(im_depth_uint16)
+        o3d_intrinsic = o3d.core.Tensor(K, dtype=o3d.core.float64)
+        o3d_extrinsic = o3d.core.Tensor(T, dtype=o3d.core.float64)
+        block_coords = volume.compute_unique_block_coordinates(
             im_depth_o3d,
-            depth_scale=1000.0,
-            depth_trunc=10.0,
-            convert_rgb_to_intensity=False,
-        )
-        o3d_intrinsic = o3d.camera.PinholeCameraIntrinsic(
-            width=im_depth.shape[1],
-            height=im_depth.shape[0],
-            fx=K[0, 0],
-            fy=K[1, 1],
-            cx=K[0, 2],
-            cy=K[1, 2],
-        )
-        o3d_extrinsic = T
-        volume.integrate(
-            im_rgbd_o3d,
             o3d_intrinsic,
             o3d_extrinsic,
+            depth_scale,
+            depth_max,
+            trunc_voxel_multiplier,
+        )
+        volume.integrate(
+            block_coords,
+            im_depth_o3d,
+            im_color_o3d,
+            o3d_intrinsic,
+            o3d_extrinsic,
+            depth_scale,
+            depth_max,
+            trunc_voxel_multiplier,
         )
 
-    mesh = volume.extract_triangle_mesh()
+    # weight_threshold=0 keeps every observed voxel, like the legacy volume.
+    mesh = volume.extract_triangle_mesh(weight_threshold=0.0).to_legacy()
     return mesh
 
 

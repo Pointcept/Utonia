@@ -19,6 +19,8 @@ import open3d as o3d
 import numpy as np
 import argparse
 
+from pcd_util import load_point_cloud
+
 try:
     import flash_attn
 except ImportError:
@@ -53,6 +55,11 @@ if __name__ == "__main__":
         default="utonia",
         help="pre-trained Utonia encoder to use (default: utonia).",
     )
+    parser.add_argument(
+        "--input",
+        default=None,
+        help="your own object point cloud (.pcd, .ply, .xyz, ...); default: the sample object.",
+    )
     args = parser.parse_args()
 
     utonia.utils.set_seed(73)
@@ -71,12 +78,18 @@ if __name__ == "__main__":
     model.eval()
 
     # Load data
-    point = utonia.data.load("sample3_object")
+    if args.input is None:
+        point = utonia.data.load("sample3_object")
+    else:
+        point = load_point_cloud(args.input)
 
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(point["coord"])
     pcd.colors = o3d.utility.Vector3dVector(point["color"])
-    pcd.estimate_normals()
+    if "normal" in point:
+        pcd.normals = o3d.utility.Vector3dVector(point["normal"])
+    else:
+        pcd.estimate_normals()
     point["normal"] = np.asarray(pcd.normals)
 
     point_rotated = {}

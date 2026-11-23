@@ -15,9 +15,12 @@
 
 import argparse
 import copy
+import numpy as np
 import utonia
 import torch
 import open3d as o3d
+
+from pcd_util import load_point_cloud
 
 try:
     import flash_attn
@@ -46,6 +49,32 @@ if __name__ == "__main__":
         default="utonia",
         help="pre-trained Utonia encoder to use (default: utonia).",
     )
+    parser.add_argument(
+        "--input",
+        nargs="+",
+        default=None,
+        help="your own point clouds (.pcd, .ply, .xyz, ...) in meters, or any units "
+        "with --object; default: two copies of the sample scene.",
+    )
+    parser.add_argument(
+        "--object",
+        action="store_true",
+        help="inputs are single objects: rescale each like demo/6_pca_object.py.",
+    )
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=None,
+        help="transform scale, larger = finer (default 0.5 for scenes, 1.0 with --object; "
+        "the other demos use 0.2 outdoor, 4.0 tabletop).",
+    )
+    parser.add_argument(
+        "--up",
+        choices=["z", "-z", "y", "-y"],
+        default="z",
+        help="axis pointing up in your files; they are rotated so it becomes +z, "
+        "which Utonia expects (write negative axes as --up=-z).",
+    )
     args = parser.parse_args()
     # set random seed
     # (random seed affect pca color, yet change random seed need manual adjustment kmeans)
@@ -62,51 +91,72 @@ if __name__ == "__main__":
         model = utonia.load(
             args.model, repo_id="Pointcept/Utonia", custom_config=custom_config
         ).to(device)
+    model.eval()
     # Load default data transform pipeline
-    transform = utonia.transform.default(0.5)
+    if args.scale is None:
+        args.scale = 1.0 if args.object else 0.5
+    transform = utonia.transform.default(args.scale)
     # Load data
-    point1 = utonia.data.load("sample1")
-    point1.pop("segment200")
-    segment = point1.pop("segment20")
-    point1["segment"] = segment  # two kinds of segment exist in ScanNet, only use one
-    original_coord = point1["coord"].copy()
+    if args.input is None:
+        point1 = utonia.data.load("sample1")
+        point1.pop("segment200")
+        segment = point1.pop("segment20")
+        point1["segment"] = segment  # two kinds of segment exist in ScanNet, only use one
+        point2 = copy.deepcopy(point1)
+        points = [point1, point2]
+    else:
+        points = [
+            load_point_cloud(path, normalize=args.object, up=args.up)
+            for path in args.input
+        ]
+        print("Left to right:", ", ".join(args.input))
+    points = [transform(point) for point in points]
 
-    point2 = copy.deepcopy(point1)
-
-    point1 = transform(point1)
-    point2 = transform(point2)
-    point = utonia.data.collate_fn([point1, point2])
-
+    # Without FlashAttention, the attention patch size of a batch is capped by its
+    # smallest cloud, which degrades the features of the larger clouds. In that
+    # case forward each cloud on its own.
+    groups = [points] if flash_attn is not None else [[point] for point in points]
+    feats, coords, batch_ids, start = [], [], [], 0
     with torch.inference_mode():
-        for key in point.keys():
-            if isinstance(point[key], torch.Tensor) and device == "cuda":
-                point[key] = point[key].cuda(non_blocking=True)
-        # model forward:
-        point = model(point)
-        # upcast point feature
-        # Point is a structure contains all the information during forward
-        # Use range(4) to upcast features from all levels for quantitative evaluation
-        for _ in range(2):
-            assert "pooling_parent" in point.keys()
-            assert "pooling_inverse" in point.keys()
-            parent = point.pop("pooling_parent")
-            inverse = point.pop("pooling_inverse")
-            parent.feat = torch.cat([parent.feat, point.feat[inverse]], dim=-1)
-            point = parent
-        while "pooling_parent" in point.keys():
-            assert "pooling_inverse" in point.keys()
-            parent = point.pop("pooling_parent")
-            inverse = point.pop("pooling_inverse")
-            parent.feat = point.feat[inverse]
-            point = parent
+        for group in groups:
+            point = utonia.data.collate_fn(group)
+            for key in point.keys():
+                if isinstance(point[key], torch.Tensor) and device == "cuda":
+                    point[key] = point[key].cuda(non_blocking=True)
+            # model forward:
+            point = model(point)
+            # upcast point feature
+            # Point is a structure contains all the information during forward
+            # Use range(4) to upcast features from all levels for quantitative evaluation
+            for _ in range(2):
+                assert "pooling_parent" in point.keys()
+                assert "pooling_inverse" in point.keys()
+                parent = point.pop("pooling_parent")
+                inverse = point.pop("pooling_inverse")
+                parent.feat = torch.cat([parent.feat, point.feat[inverse]], dim=-1)
+                point = parent
+            while "pooling_parent" in point.keys():
+                assert "pooling_inverse" in point.keys()
+                parent = point.pop("pooling_parent")
+                inverse = point.pop("pooling_inverse")
+                parent.feat = point.feat[inverse]
+                point = parent
+            feats.append(point.feat)
+            coords.append(point.coord)
+            batch_ids.append(point.batch + start)
+            start += len(group)
 
-        # PCA
-        pca_color = get_pca_color(point.feat, brightness=1.2, center=True)
-        batched_coord = point.coord.clone()
-        batched_coord[:, 0] += point.batch * 8.0
+        # PCA over all clouds together, so similar features get similar colors
+        pca_color = get_pca_color(torch.cat(feats), brightness=1.2, center=True)
+
+    # place the clouds side by side along x
+    batched_coord = torch.cat(coords).cpu().numpy()
+    batch = torch.cat(batch_ids).cpu().numpy()
+    spacing = 1.2 * max(np.ptp(batched_coord[batch == b, 0]) for b in range(len(points)))
+    batched_coord[:, 0] += batch * spacing
 
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(batched_coord.cpu().detach().numpy())
+    pcd.points = o3d.utility.Vector3dVector(batched_coord)
     pcd.colors = o3d.utility.Vector3dVector(pca_color.cpu().detach().numpy())
     o3d.visualization.draw_geometries([pcd])
 

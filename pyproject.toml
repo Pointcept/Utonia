@@ -1,0 +1,67 @@
+[project]
+name = "utonia"
+version = "1.0"
+description = "Utonia: Toward One Encoder for All Point Clouds - pre-trained PTv3 encoder"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Yujia Zhang" }]
+requires-python = "==3.10.*"
+dependencies = [
+    "addict",
+    "camtools>=0.1.8",
+    "einops>=0.8.2",
+    "huggingface-hub",
+    "natsort>=8.4.0",
+    "numpy<=1.26.4", # for random seed
+    "opencv-python>=4.11.0.86",
+    "packaging",
+    "scipy",
+    "spconv-cu126", # newest spconv build on PyPI; runs on CUDA 12.8 torch, incl. Blackwell
+    "timm",
+    "torch==2.8.0", # PyPI wheel is the CUDA 12.8 build on linux x86_64
+    "torch-scatter",
+    "trimesh>=5.2.1",
+]
+
+[project.optional-dependencies]
+flash = ["flash-attn"]
+
+[dependency-groups]
+demo = ["matplotlib", "open3d"]
+video = [
+    "camtools",
+    "einops",
+    "natsort",
+    "opencv-python",
+    "pillow",
+    "requests",
+    "safetensors",
+    "torchvision",
+    "tqdm",
+    "trimesh",
+    "vggt",
+]
+
+[tool.uv]
+default-groups = ["demo"]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+
+[tool.uv.sources]
+torch-scatter = { index = "pyg" }
+flash-attn = { url = "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.3/flash_attn-2.8.3+cu12torch2.8cxx11abiTRUE-cp310-cp310-linux_x86_64.whl" }
+vggt = { git = "https://github.com/facebookresearch/vggt.git", rev = "a288dd0f14786c93483e45524328726ab7b1b4ce" }
+
+# Prebuilt torch-scatter wheels; keep this URL in sync with the torch pin above.
+[[tool.uv.index]]
+name = "pyg"
+url = "https://data.pyg.org/whl/torch-2.8.0+cu128.html"
+format = "flat"
+explicit = true
+
+[build-system]
+requires = ["uv_build>=0.12.23,<0.13"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = ""

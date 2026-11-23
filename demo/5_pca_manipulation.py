@@ -124,7 +124,7 @@ if __name__ == "__main__":
 
     # Visualization (Optional, commented out as in Input 1)
     pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(origin_coord)
+    pcd.points = o3d.utility.Vector3dVector(original_coord)
     pcd.colors = o3d.utility.Vector3dVector(original_pca_color.cpu().detach().numpy())
     o3d.visualization.draw_geometries([pcd])
 

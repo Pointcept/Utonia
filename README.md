@@ -17,84 +17,87 @@ This repo is the official project repository of the paper **_Utonia: Toward One 
 ## Overview
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Private Studies](#private-studies)
 - [Citation](#citation)
 
 ## Installation
-This repo provide two ways of installation: **standalone mode** and **package mode**. And thanks to [HubertLongshanks](https://github.com/HubertLongshanks), there are some docker images, [utonia-cuda128](https://hub.docker.com/r/hughbertlong/utonia-cuda-128-rtx-blackwell) and [utonia-cuda128-flashattn](https://hub.docker.com/r/hughbertlong/utonia-cu128-x86-ubuntu24.04-flashattn), as in [#28](https://github.com/Pointcept/Utonia/issues/28).
-- The **standalone mode** is recommended for users who want to use the code for quick inference and visualization. We provide a most easy way to install the environment by using `conda` environment file. The whole environment including `cuda` and `pytorch` can be easily installed by running the following command:
+This repo is a [uv](https://docs.astral.sh/uv/) project. Every CUDA extension (`spconv`, `torch-scatter`, FlashAttention) installs from a prebuilt wheel, so no local CUDA toolkit or compiler is needed, only an NVIDIA driver supporting CUDA 12.8 or newer.
+The environment is Python 3.10 + PyTorch 2.8.0 (CUDA 12.8) on Linux x86_64, which covers GPUs from Volta up to Blackwell (e.g. RTX 50-series). Docker images are also available thanks to [HubertLongshanks](https://github.com/HubertLongshanks): [utonia-cuda128](https://hub.docker.com/r/hughbertlong/utonia-cuda-128-rtx-blackwell) and [utonia-cuda128-flashattn](https://hub.docker.com/r/hughbertlong/utonia-cu128-x86-ubuntu24.04-flashattn), as in [#28](https://github.com/Pointcept/Utonia/issues/28).
+- The **standalone mode** is recommended for users who want to use the code for quick inference and visualization:
   ```bash
-  # Create and activate conda environment named as 'utonia'
-  # cuda: 12.4, pytorch: 2.5.0
+  # Core dependencies + visualization demos (demo/0-7)
+  uv sync
 
-  # run `unset CUDA_PATH` if you have installed cuda in your local environment
-  conda env create -f environment.yml --verbose
-  conda activate utonia
+  # Optional add-ons, combine as needed:
+  #   --extra flash   FlashAttention (Ampere or newer GPUs); without it the demos fall back to PyTorch SDPA
+  #   --group video   video demo (demo/8_pca_video.py), including VGGT
+  uv sync --extra flash --group video
   ```
 
-  *Make sure **FlashAttention** is installed by default.*
-
-- The **package mode** is recommended for users who want to inject our model into their own codebase. We provide a `setup.py` file for installation. You can install the package by running the following command:
+- The **package mode** is recommended for users who want to inject our model into their own codebase. Add it to your uv project (Python 3.10); the prebuilt `torch-scatter` wheel source is picked up from this repo's `pyproject.toml`:
   ```bash
-  # Ensure Cuda and Pytorch are already installed in your local environment
-
-  # CUDA_VERSION: cuda version of local environment (e.g., 124), check by running 'nvcc --version'
-  # TORCH_VERSION: torch version of local environment (e.g., 2.5.0), check by running 'python -c "import torch; print(torch.__version__)"'
-  pip install spconv-cu${CUDA_VERSION}
-  pip install torch-scatter -f https://data.pyg.org/whl/torch-{TORCH_VERSION}+cu${CUDA_VERSION}.html
-  pip install git+https://github.com/Dao-AILab/flash-attention.git
-  pip install huggingface_hub timm 
-
-  # (optional, or directly copy the utonia folder to your project)
-  python setup.py install
-  ```
-  Additionally, for running our **demo code**, the following packages are also required:
-  ```bash
-  pip install open3d fast_pytorch_kmeans psutil addict scipy camtools natsort opencv-python trimesh gradio numpy==1.26.4  # currently, open3d does not support numpy 2.x
+  uv add "utonia @ git+https://github.com/Krevera/pointcept-utonia-demo"
+  # or with FlashAttention
+  uv add "utonia[flash] @ git+https://github.com/Krevera/pointcept-utonia-demo"
   ```
 
 ## Quick Start
 ***Let's first begin with some simple visualization demo with Utonia, our pre-trained PTv3 model:***
 - **Visualization.** We provide the same visualization demos as Sonata and Concerto: the segmentation result, similarity heatmap, and PCA visualization demo in the `demo` folder, including the visualization without color/normal input and the demo for videos lifted by [VGGT](https://github.com/facebookresearch/vggt.git). You can run the following command to visualize the result of `utonia`:
   ```bash
-  # For visualization demo without color and normal, use python demo/xxx.py --wo_color --wo_normal
-  export PYTHONPATH=./
-  python demo/0_pca_indoor.py
-  python demo/1_similarity.py
-  python demo/2_sem_seg.py  # linear probed head on ScanNet
-  python demo/3_batch_forward.py
-  python demo/4_pca_hk.py
-  python demo/5_pca_manipulation.py
-  python demo/6_pca_object.py
-  python demo/7_pca_outdoor.py
+  # For visualization demo without color and normal, use uv run python demo/xxx.py --wo_color --wo_normal
+  uv run python demo/0_pca_indoor.py
+  uv run python demo/1_similarity.py
+  uv run python demo/2_sem_seg.py  # linear probed head on ScanNet
+  uv run python demo/3_batch_forward.py
+  uv run python demo/4_pca_hk.py
+  uv run python demo/5_pca_manipulation.py
+  uv run python demo/6_pca_object.py
+  uv run python demo/7_pca_outdoor.py
   ```
 
   Select a smaller encoder with `--model utonia_small` or `--model utonia_tiny`:
   ```bash
-  python demo/0_pca_indoor.py --model utonia_small
-  python demo/3_batch_forward.py --model utonia_tiny
+  uv run python demo/0_pca_indoor.py --model utonia_small
+  uv run python demo/3_batch_forward.py --model utonia_tiny
   ```
   All PCA, similarity, batch, and video demos support `--model`; the default remains `utonia`.
   `demo/2_sem_seg.py` uses the ScanNet linear probing head trained for `utonia` and does not support the small/tiny encoders.
+
+  To run the object demo on your own point cloud (`.pcd`, `.ply`, `.xyz`, or any format Open3D reads), pass `--input`. The object is rescaled to the sample's size (centered, longest side 1), so its original units don't matter:
+  ```bash
+  uv run python demo/6_pca_object.py --input your_object.pcd
+  ```
+
+  To run several of your own point clouds together, pass them all to `demo/3_batch_forward.py`. They are shown side by side, and PCA colors are computed jointly, so similar colors mean similar features across clouds. Inputs are assumed to be in meters; add `--object` for single objects in any units. Use `--scale` to set the granularity (default 0.5 for rooms; the other demos use 0.2 for outdoor and 4.0 for tabletop scenes):
+  ```bash
+  uv run python demo/3_batch_forward.py --input scan_a.pcd scan_b.pcd scan_c.pcd
+  uv run python demo/3_batch_forward.py --object --input mug.pcd bowl.pcd
+  ```
+  Without FlashAttention, a batch's attention patch size is capped by its smallest cloud, which degrades the larger clouds' features, so the demo then runs each cloud separately. With `uv sync --extra flash` the clouds are forwarded as a single batch.
+  Utonia expects +z to point up. If your files use another up axis, pass it with `--up` (`--up=y`, `--up=-y` or `--up=-z`), and the clouds are rotated so that axis becomes +z.
 
   <div align='left'>
   <img src="https://raw.githubusercontent.com/pointcept/assets/main/utonia/demo.png" alt="teaser" width="800" />
   </div>
 
-  For video demo, we need VGGT to lift video to point cloud. The additional installation for VGGT is as below:
+  For video demo, we need VGGT to lift video to point cloud. The `video` dependency group installs VGGT and the other video demo dependencies:
   ```bash
-  git clone https://github.com/facebookresearch/vggt.git
-  cd vggt
-  pip install -e .
-  cd ..
-  # Or you can copy the vggt folder in the vggt repository to ./demo
+  uv sync --group video
   # Then you can run the demo
-  python demo/8_pca_video.py \
+  uv run python demo/8_pca_video.py \
   --input_video ${YOUR_VIDEO_PATH} \
   --conf_thres 0 \
   --prediction_mode "Depthmap and Camera Branch" \
   --if_TSDF \
   --pca_start 1 \
   --pca_brightness 1.2 # the usage of these inpputs can be found in 'help'.
+  ```
+
+  To use a few multi-view images (e.g. 4 cameras around a scene) instead of a video, use `demo/8b_pca_multiview.py`. The first image is the reference view. It writes `pcd.ply` and `pca.ply` to `multiview_demo_output/` and opens the PCA result in an Open3D window:
+  ```bash
+  uv run python demo/8b_pca_multiview.py --images view_0.png view_1.png view_2.png view_3.png
+  # --conf_thres (default 50) drops low-confidence VGGT points; lower it to keep more points
   ```
 
 ***Then, here are the instruction to run inference on custom data with our Utonia:***
@@ -217,6 +220,15 @@ This repo provide two ways of installation: **standalone mode** and **package mo
   ```python
   feat = point.feat[point.inverse]
   ```
+
+## Private Studies
+`study/` holds analyses on internal data, so it is git-ignored in this public repo and stored in S3 at `s3://thindev/pointcept-utonia-demo/study`. With access to the bucket (for SSO, run `aws sso login` first):
+```bash
+scripts/study_sync.sh pull            # download or update study/ from S3
+scripts/study_sync.sh push --dryrun   # preview your changes
+scripts/study_sync.sh push            # upload your changes
+```
+The script wraps `aws s3 sync` and never transfers `__pycache__`. Extra arguments go to `aws s3 sync`; for example, add `--delete` to also remove files that no longer exist on the source side.
 
 ## Citation
 If you find _Utonia_ useful to your research, please consider citing our works as an acknowledgment. (੭ˊ꒳​ˋ)੭✧
